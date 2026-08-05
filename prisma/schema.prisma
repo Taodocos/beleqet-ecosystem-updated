@@ -81,8 +81,6 @@ model User {
 
   aiFeedConsent Boolean @default(true)
 
-  gdprConsent Boolean @default(true)
-
   /// Back-relation required by Prisma for the one-to-many relationship
   /// declared on SearchHistory.user below. Not queried directly from the
   /// User side — the AI Feed module reads SearchHistory independently.
