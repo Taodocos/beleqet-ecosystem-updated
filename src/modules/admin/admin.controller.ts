@@ -147,6 +147,9 @@ export class AdminController {
       { title: dto.title, userIds: dto.userIds, role: dto.role },
     );
     return { delivered };
+  }
+
+  @Post('broadcast')
   async broadcast(@Body() dto: BroadcastDto) {
     let users;
     if (dto.userIds && dto.userIds.length > 0) {

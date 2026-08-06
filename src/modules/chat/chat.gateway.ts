@@ -101,6 +101,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         userId,
         roomId: data.roomId,
         content: data.content,
+      });
+
       client.emit('error', {
         message: this.i18n.t('messages.chat.messageContentRequired', { lang: 'en' }),
       });
