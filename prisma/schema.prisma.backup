@@ -92,8 +92,7 @@ model User {
   fraudAlerts             FraudAlert[]             @relation("AlertUser")
   resolvedFraudAlerts     FraudAlert[]             @relation("AlertResolver")
 
-  email_logs            EmailLog[]
-  speechConversations   SpeechConversation[]
+  email_logs      EmailLog[]
 
   @@index([lastLoginAt])
   @@index([createdAt])
@@ -1887,4 +1886,67 @@ model FreelanceMatchScore {
   @@index([freelanceJobId, overallScore])
   @@index([freelancerId, overallScore])
   @@map("freelance_match_scores")
+}
+
+// ─────────────────────────────────────────────────────────
+// Webhook Integration — Payment Gateway Webhook models
+// ─────────────────────────────────────────────────────────
+
+/// Webhook delivery log for payment gateway events (Stripe, PayPal, Chapa).
+model WebhookLog {
+  id             String    @id @default(uuid())
+  provider       String
+  eventType      String
+  externalId     String
+  idempotencyKey String    @unique
+  statusCode     Int       @default(202)
+  isVerified     Boolean   @default(false)
+  ipAddress      String?
+  userAgent      String?
+  requestBody    Json
+  responseBody   Json?
+  error          String?
+  retryCount     Int       @default(0)
+  retryUntil     DateTime?
+  processedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([provider, eventType])
+  @@index([idempotencyKey])
+  @@index([createdAt])
+  @@index([processedAt])
+  @@map("webhook_logs")
+}
+
+/// Payment transaction audit trail — tracks detailed payment lifecycle events from webhooks.
+model PaymentTransaction {
+  id                    String   @id @default(uuid())
+  externalTransactionId String   @unique
+  externalCustomerId    String
+  provider              String
+  amount                Int
+  currency              String   @default("USD")
+  status                String
+  metadata              Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([externalTransactionId])
+  @@index([externalCustomerId])
+  @@index([provider, status])
+  @@index([createdAt])
+  @@map("payment_transactions")
+}
+
+/// GDPR consent tracking for webhook data processing.
+model GdprConsent {
+  id          String    @id @default(uuid())
+  purpose     String
+  version     String    @default("1.0")
+  consentedAt DateTime  @default(now())
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([purpose])
+  @@map("gdpr_consents")
 }
