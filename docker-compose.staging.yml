@@ -26,7 +26,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 60s
 
   redis:
     image: redis:7-alpine
@@ -63,6 +63,8 @@ services:
       TOTP_ISSUER: ${TOTP_ISSUER:-Beleqet}
       # GdprGuardService refuses to construct without a 64-char hex key.
       GDPR_ENCRYPTION_KEY: ${GDPR_ENCRYPTION_KEY:?GDPR_ENCRYPTION_KEY is required (64 hex chars)}
+      # The common EncryptionModule refuses to boot without a 64-char hex key.
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required (64 hex chars)}
       # The auth module refuses to boot without the full OAuth set (see
       # src/modules/auth/config/auth.config.ts), so these are required here.
       OAUTH_TOKEN_ENCRYPTION_KEY: ${OAUTH_TOKEN_ENCRYPTION_KEY:?OAUTH_TOKEN_ENCRYPTION_KEY is required (base64, 32 bytes decoded)}
@@ -101,6 +103,7 @@ services:
       SMTP_FROM_ADDRESS: ${SMTP_FROM_ADDRESS:?SMTP_FROM_ADDRESS is required}
       SMTP_SECURE: ${SMTP_SECURE:-false}
       SMTP_FROM: ${SMTP_FROM:-}
+      UNSUBSCRIBE_SECRET: ${UNSUBSCRIBE_SECRET:?UNSUBSCRIBE_SECRET is required}
       BULL_BOARD_USERNAME: ${BULL_BOARD_USERNAME:-}
       BULL_BOARD_PASSWORD: ${BULL_BOARD_PASSWORD:-}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
@@ -113,8 +116,8 @@ services:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4000/api/v1/health || exit 1']
       interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 60s
 
   admin-frontend:
     image: ${ADMIN_IMAGE:?ADMIN_IMAGE is required (set by the deploy script)}
@@ -131,7 +134,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 60s
 
   jobs-frontend:
     image: ${JOBS_IMAGE:?JOBS_IMAGE is required (set by the deploy script)}
@@ -148,8 +151,8 @@ services:
       test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3001/ || exit 1']
       interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 20s
+      retries: 10
+      start_period: 60s
 
 volumes:
   postgres_data:

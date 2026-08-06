@@ -13,6 +13,7 @@ export const QUEUE_NAMES = {
   SCHEDULED: 'scheduled',
   REFERRALS: 'referrals',
   JOB_ALERTS: 'job-alerts',
+  FRAUD: 'fraud',
   VIDEO_INTERVIEW: 'video-interview',
 } as const;
 
@@ -42,6 +43,8 @@ export const NOTIFICATION_JOBS = {
   SEND_IN_APP: 'send-in-app',
   SEND_TELEGRAM: 'send-telegram',
   SEND_EMAIL: 'send-email',
+  SEND_PUSH: 'send-push',
+  SEND_SMS: 'send-sms',
 } as const;
 
 // ── Analytics jobs ────────────────────────────────────────────────────────
@@ -62,6 +65,7 @@ export const ESCROW_JOBS = {
 export const WALLET_JOBS = {
   RELEASE_PENDING: 'release-pending',
   PROCESS_WITHDRAWAL: 'process-withdrawal',
+  AUTO_RELEASE: 'auto-release-milestone', // 14-day auto-approval
 } as const;
 
 // ── Two-Factor Authentication jobs ────────────────────────────────────────
@@ -75,6 +79,16 @@ export const VIDEO_INTERVIEW_JOBS = {
   EVALUATE: 'evaluate-interview',
   CLEANUP_EXPIRED: 'cleanup-expired-interviews',
   NOTIFY_COMPLETE: 'notify-interview-complete',
+} as const;
+
+// ── Fraud detection jobs ──────────────────────────────────────────────────
+export const FRAUD_JOBS = {
+  SCAN_USER: 'scan-user',
+  SCAN_MESSAGE: 'scan-message',
+  SCAN_TRANSACTION: 'scan-transaction',
+  SCAN_ESCROW_TRANSACTION: 'scan-escrow-transaction',
+  SCAN_JOB: 'scan-job',
+  SCAN_ALL: 'scan-all',
 } as const;
 
 // ── Scoring thresholds ────────────────────────────────────────────────────

@@ -3,7 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { TwoFactorController } from './two-factor.controller';
 import { TwoFactorService } from './two-factor.service';
-import { EncryptionService } from './encryption.service';
+import { EncryptionService } from '../../common/encryption/encryption.service';
+import { ENCRYPTION_KEY } from '../../common/encryption/encryption.constants';
 import { BackupCodeService } from './backup-code.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from '../auth/auth.service';
@@ -63,11 +64,27 @@ const mockAuthService = {
       role: 'JOB_SEEKER',
     },
   }),
+  issueTokensForUserId: jest.fn().mockResolvedValue({
+    accessToken: 'test-access-token',
+    refreshToken: 'test-refresh-token',
+    user: {
+      id: 'user-1',
+      email: 'test@example.com',
+      firstName: 'Test',
+      lastName: 'User',
+      role: 'JOB_SEEKER',
+    },
+  }),
 };
 
 const mockRedis = {
   set: jest.fn().mockResolvedValue('OK'),
 };
+
+const TEST_ENCRYPTION_KEY = Buffer.from(
+  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+  'hex',
+);
 
 describe('TwoFactorController', () => {
   let controller: TwoFactorController;
@@ -80,6 +97,7 @@ describe('TwoFactorController', () => {
       providers: [
         TwoFactorService,
         EncryptionService,
+        { provide: ENCRYPTION_KEY, useValue: TEST_ENCRYPTION_KEY },
         BackupCodeService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: ConfigService, useValue: mockConfig },
@@ -121,8 +139,8 @@ describe('TwoFactorController', () => {
       enabled: false,
       id: 'tf-1',
       secret: (() => {
-        const encService = new EncryptionService(mockConfig as any);
-        return encService.encrypt('JBSWY3DPEHPK3PXP').ciphertext;
+        const encService = new EncryptionService(TEST_ENCRYPTION_KEY);
+        return encService.encrypt('JBSWY3DPEHPK3PXP');
       })(),
     });
     mockPrisma.$transaction.mockImplementation((cb: any) => cb(mockPrisma));
@@ -138,11 +156,11 @@ describe('TwoFactorController', () => {
   });
 
   it('should complete login via verify endpoint', async () => {
-    const encService = new EncryptionService(mockConfig as any);
+    const encService = new EncryptionService(TEST_ENCRYPTION_KEY);
     const encrypted = encService.encrypt('JBSWY3DPEHPK3PXP');
     mockPrisma.userTwoFactor.findUnique.mockResolvedValue({
       enabled: true,
-      secret: encrypted.ciphertext,
+      secret: encrypted,
     });
     mockPrisma.user.findUnique.mockResolvedValue({
       id: 'user-1',
@@ -155,7 +173,7 @@ describe('TwoFactorController', () => {
 
     const result = await controller.verify({ tempToken: 'valid-token', code: '123456' });
     expect(result).toHaveProperty('accessToken');
-    expect(mockAuthService.issueTokens).toHaveBeenCalled();
+    expect(mockAuthService.issueTokensForUserId).toHaveBeenCalled();
   });
 
   it('should throw on verify with invalid token', async () => {
@@ -201,11 +219,11 @@ describe('TwoFactorController', () => {
   });
 
   it('should complete step-up verification', async () => {
-    const encService = new EncryptionService(mockConfig as any);
+    const encService = new EncryptionService(TEST_ENCRYPTION_KEY);
     const encrypted = encService.encrypt('JBSWY3DPEHPK3PXP');
     mockPrisma.userTwoFactor.findUnique.mockResolvedValue({
       enabled: true,
-      secret: encrypted.ciphertext,
+      secret: encrypted,
     });
     mockPrisma.userTwoFactor.update.mockResolvedValue({});
     mockJwt.verify.mockReturnValue({ sub: 'user-1', purpose: '2fa_step_up_challenge' });
@@ -277,8 +295,8 @@ describe('TwoFactorController', () => {
       enabled: true,
       id: 'tf-1',
       secret: (() => {
-        const encService = new EncryptionService(mockConfig as any);
-        return encService.encrypt('JBSWY3DPEHPK3PXP').ciphertext;
+        const encService = new EncryptionService(TEST_ENCRYPTION_KEY);
+        return encService.encrypt('JBSWY3DPEHPK3PXP');
       })(),
     });
     mockPrisma.userTwoFactor.update.mockResolvedValue({});
@@ -302,11 +320,11 @@ describe('TwoFactorController', () => {
   });
 
   it('should disable 2FA', async () => {
-    const encService = new EncryptionService(mockConfig as any);
+    const encService = new EncryptionService(TEST_ENCRYPTION_KEY);
     const encrypted = encService.encrypt('JBSWY3DPEHPK3PXP');
     mockPrisma.userTwoFactor.findUnique.mockResolvedValue({
       enabled: true,
-      secret: encrypted.ciphertext,
+      secret: encrypted,
     });
     mockPrisma.userTwoFactor.delete.mockResolvedValue({});
 

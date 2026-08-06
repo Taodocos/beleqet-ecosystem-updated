@@ -39,6 +39,7 @@ export interface AuthenticatedSessionResponse {
   refreshToken: string;
   user: AuthenticatedUserResponse;
 }
+const PLATFORM_FEE_PCT = 0.1;
 
 @Injectable()
 export class AuthService {
@@ -79,7 +80,7 @@ export class AuthService {
     );
 
     // Send personalised welcome email
-    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+    const frontendUrl = this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:4001';
     const dashboardUrl =
       user.role === 'EMPLOYER'
         ? `${frontendUrl}/employer`
@@ -190,6 +191,7 @@ export class AuthService {
       .catch((err) =>
         this.logger.error(`Failed to enqueue login alert email for ${user.email}: ${err.message}`),
       );
+    await this.touchLastLogin(user.id);
     return this.issueTokens(user);
   }
 
@@ -453,7 +455,16 @@ export class AuthService {
     });
 
     if (!user) throw new UnauthorizedException('User not found');
+    await this.touchLastLogin(user.id);
     return this.issueTokens(user);
+  }
+
+  /** Records a successful authentication for admin active-user metrics. */
+  private async touchLastLogin(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { lastLoginAt: new Date() },
+    });
   }
 
   /**

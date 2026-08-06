@@ -59,12 +59,13 @@ async function bootstrap() {
     if (adminPassword.length < 12)
       throw new Error('ADMIN_PASSWORD must contain at least 12 characters');
     const prisma = app.get(PrismaService);
+    const passwordHash = await bcrypt.hash(adminPassword, 12);
     await prisma.user.upsert({
       where: { email: adminEmail },
       update: { role: 'ADMIN', isActive: true },
       create: {
         email: adminEmail,
-        passwordHash: await bcrypt.hash(adminPassword, 12),
+        passwordHash,
         firstName: configService.get<string>('ADMIN_FIRST_NAME', 'Platform'),
         lastName: configService.get<string>('ADMIN_LAST_NAME', 'Admin'),
         role: 'ADMIN',
@@ -75,22 +76,46 @@ async function bootstrap() {
   }
 
   // ── Security ──────────────────────────────────────────────────────────────
-  app.use(helmet());
-  const allowedOrigins = configService
-    .get<string>('FRONTEND_URL', 'http://localhost:3000')
+  // Handle CORS preflight before any other middleware to guarantee OPTIONS
+  // responses include the required CORS headers regardless of routing.
+  const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:4001');
+  const allowedOrigins = frontendUrl
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
+  // Also allow localhost ↔ 127.0.0.1 variants (browsers / Playwright may use either)
+  const extraOrigins = [
+    ...new Set(
+      allowedOrigins.flatMap((origin) => {
+        const variants = [origin];
+        if (origin.includes('://localhost')) {
+          variants.push(origin.replace('://localhost', '://127.0.0.1'));
+        } else if (origin.includes('://127.0.0.1')) {
+          variants.push(origin.replace('://127.0.0.1', '://localhost'));
+        }
+        return variants;
+      }),
+    ),
+  ];
   app.enableCors({
     origin: (origin, cb) => {
       if (!origin) return cb(null, true);
-      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) return cb(null, true);
+      if (extraOrigins.includes('*') || extraOrigins.includes(origin)) return cb(null, true);
       if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin)) return cb(null, true);
+      if (nodeEnv === 'development' && /^http:\/\/localhost(:\d+)?$/i.test(origin))
+        return cb(null, true);
+      logger.warn(`CORS blocked origin: ${origin}`);
       return cb(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
+  app.use(
+    helmet({
+      crossOriginEmbedderPolicy: nodeEnv === 'production',
+      contentSecurityPolicy: nodeEnv === 'production' ? undefined : false,
+    }),
+  );
 
   // ── Global prefix ─────────────────────────────────────────────────────────
   app.setGlobalPrefix('api/v1');
@@ -132,9 +157,12 @@ async function bootstrap() {
       .addTag('freelance', 'Freelance gigs, bids & contracts')
       .addTag('escrow', 'BeleqetSafe escrow & payments')
       .addTag('wallet', 'Freelancer wallet & withdrawals')
+      .addTag('community-forum', 'Community forum — threads, replies & upvotes')
       .addTag('notifications', 'Notification management')
       .addTag('analytics', 'Platform analytics')
       .addTag('db-index-master', 'DB Index Master — query analysis & index health (admin only)')
+      .addTag('fraud-alert', 'Fraud detection & alerts')
+      .addTag('faq-bot', 'AI-powered FAQ Bot assistant')
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);
@@ -145,7 +173,7 @@ async function bootstrap() {
   // ── Graceful shutdown ─────────────────────────────────────────────────────
   app.enableShutdownHooks();
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   logger.log(`🚀 Beleqet API running on ${port}/api/v1`);
   logger.log(`   Environment: ${nodeEnv}`);
 }
